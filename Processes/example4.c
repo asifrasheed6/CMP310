@@ -22,7 +22,6 @@ int main(int argc, char** argv){
 		char out = f[i];
 		printf("%c\n",out);
 	}
-
-	shm_unlink("asif");
+        
 	return 0;
 }
