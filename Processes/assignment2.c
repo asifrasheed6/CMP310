@@ -22,6 +22,8 @@ int main(int argc, char** argv){
     const int NUM_CHILD = atoi(argv[1]); // Number of child processes
     const int NUM_POINT = atoi(argv[2]); // Number of sample points
     double pi[NUM_CHILD]; // Array to store pi approximations
+    double run_time[NUM_CHILD]; // Run time for each child process
+    double total_time = 0; // Run time for all the child processes
     
     int count = 0; // Number of sample points assigned to child. Once all children are assigned sample points, count = NUM_POINT
     for(int i=0; i<NUM_CHILD; i++){
@@ -62,12 +64,17 @@ int main(int argc, char** argv){
         }
         /*
          Parent points waits for the child to terminate.
+         Parent calculates the total wait time for the child process to terminate (which is the total run time for the child).
+         Parent adds the total run time of the child to the total run time of all children.
          Once child terminates, the parent reads the number of sample points inside the circle from the pipe.
          Using the number of sample points inside the circle and the total number of points assigned to the child (total number of points assigned to the child = total number of points in a rectangle) calculates the value of pi.
          The value of pi is store in the array pi.
          */
         else{
+            time_t start = time(NULL);
             wait(NULL);
+            run_time[i] = time(NULL) - start;
+            total_time += run_time[i];
             
             char cpoints[256];
             FILE* ptr = fdopen(fd[0], "r");
@@ -79,8 +86,10 @@ int main(int argc, char** argv){
     }
     
     // Prints all the pi approximations
-    for(int i=0; i<NUM_CHILD; i++)
+    for(int i=0; i<NUM_CHILD; i++){
         printf("%s%d%s%f\n", "Pi Approximation ", i+1, " = ", pi[i]);
+        printf("%s%d%s%f\n", "Speedup time for child process ", i, " = ", run_time[i]/total_time);
+    }
     
     return 0;
 }
