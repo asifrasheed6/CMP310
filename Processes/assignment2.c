@@ -27,7 +27,7 @@ int main(int argc, char** argv){
     double runtime[NUM_CHILD]; // Array to store run time of each child in milliseconds
     double totaltime = 0; // Total runtime of all the child processes
     
-    int count = 0; // Number of sample points assigned to child. Once all children are assigned sample points, count = NUM_POINT
+    int count = 0; // Number of sample points assigned to child processes. Once all child processes are assigned sample points, count = NUM_POINT
     for(int i=0; i<NUM_CHILD; i++){
         int fd[2];
         
@@ -37,9 +37,9 @@ int main(int argc, char** argv){
             exit(1);
         }
         
-        const int child_points = (i == NUM_CHILD-1) ? NUM_POINT-count : ceil((double) NUM_POINT/NUM_CHILD); // To balance the number of sample points assigned to each child (in case NUM_POINT is not a multiple of NUM_CHILD)
+        const int child_points = (i == NUM_CHILD-1) ? NUM_POINT-count : ceil((double) NUM_POINT/NUM_CHILD); // To balance the number of sample points assigned to each child (if NUM_POINT is not a multiple of NUM_CHILD)
         
-        count+=child_points;
+        count += child_points;
         
         pid_t pid = fork();
         
@@ -50,10 +50,10 @@ int main(int argc, char** argv){
         /*
          Each child will generate x and y coordinates for the number of sample points assigned to it.
          If the distance between the point and origin is less than or equal to 1, it is considered to be inside the circle.
-         From the sample points, the child counts the number of points inside the circle and return it to the parent through a pipe.
+         From the sample points, the child counts the number of points inside the circle (stored in cpoints) and return it to the parent through a pipe.
          */
         else if(pid == 0){
-            int cpoints = 0; // Number of points inside the circle
+            int cpoints = 0;
             
             for(int i = 0; i<child_points; i++){
                 double x = -1 + ((double) rand() / RAND_MAX) * 2;
@@ -71,7 +71,7 @@ int main(int argc, char** argv){
         }
         /*
          Parent waits for child to terminate.
-         Parent calculates the time elapsed while waiting for the child (which is approximately the runtime of the child process) and stores it in runtime.
+         Parent calculates the time elapsed while waiting for the child (which is approximately the runtime of the child process as the time is calculated with respect to the Epoch) and stores it in runtime.
          Parent adds the run time of the child process to totaltime.
          Once child terminates, the parent reads the number of sample points inside the circle from the pipe.
          Using the number of sample points inside the circle and the total number of points assigned to the child (total number of points assigned to the child = total number of points in a rectangle) calculates the value of pi.
@@ -79,22 +79,22 @@ int main(int argc, char** argv){
          The number of sample points in the circle is added to ctotal.
          */
         else{
-            struct timeval child_start_time, child_end_time; // To calculate time elapsed
+            struct timespec child_start_time, child_end_time;
             
-            gettimeofday(&child_start_time, NULL);
+            clock_gettime(CLOCK_REALTIME, &child_start_time);
             wait(NULL);
-            gettimeofday(&child_end_time, NULL);
+            clock_gettime(CLOCK_REALTIME, &child_end_time);
             
-            runtime[i] = (double) (child_end_time.tv_sec - child_start_time.tv_sec) * 1000 + child_end_time.tv_usec - child_start_time.tv_usec / 1000;
+            runtime[i] = (child_end_time.tv_nsec - child_start_time.tv_nsec) * 1e-9;
             totaltime += runtime[i];
-            
+                        
             char cpoints[256];
             FILE* ptr = fdopen(fd[0], "r");
             fscanf(ptr, "%s", cpoints);
             fclose(ptr);
             
             ctotal += atoi(cpoints);
-            pi[i] = (double) 4 * atoi(cpoints) / child_points; // Number of points inside the rectangle = child_points
+            pi[i] = (double) 4 * atoi(cpoints) / child_points;
         }
     }
     
@@ -103,7 +103,6 @@ int main(int argc, char** argv){
         printf("%s%d%s%f\n", "Pi Approximation ", i+1, " = ", pi[i]);
         printf("%s%d%s%f\n\n", "Speed up time for child ", i+1, " = ", runtime[i]/totaltime);
     }
-    
     
     printf("%s%f\n","Pi Approximation using number of points from all child processes = ", (double) 4 * ctotal / NUM_POINT);
     
