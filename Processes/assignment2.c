@@ -7,22 +7,28 @@
 #include<sys/stat.h>
 #include<sys/wait.h>
 
+/*
+ Program to calculate pi approximations using Monte Carlo method.
+ The pagram accepts number of child processes and number of sample points used for the approximation as command line parameters.
+ */
 
 int main(int argc, char** argv){
+    // If not all command line parameters are passed
     if(argc < 3){
-        printf("Please enter the number of children and the number of points\n");
+        printf("Usage: ./monte number_of_children number_of_points\n");
         exit(1);
     }
     
-    int fd[2];
-    pipe(fd);
-    
     const int NUM_CHILD = atoi(argv[1]); // Number of child processes
     const int NUM_POINT = atoi(argv[2]); // Number of sample points
+    double pi[NUM_CHILD]; // Array to store pi approximations
     
-    int count = 0;
+    int count = 0; // Number of sample points assigned to child. Once all children are assigned sample points, count = NUM_POINT
     for(int i=0; i<NUM_CHILD; i++){
-        const int child_points = (i == NUM_CHILD-1) ? NUM_POINT-count : ceil((double) NUM_POINT/NUM_CHILD);
+        int fd[2];
+        pipe(fd);
+        
+        const int child_points = (i == NUM_CHILD-1) ? NUM_POINT-count : ceil((double) NUM_POINT/NUM_CHILD); // To balance the number of sample points assigned to each child (in case NUM_POINT is not a multiple of NUM_CHILD)
         
         count+=child_points;
         
@@ -32,6 +38,11 @@ int main(int argc, char** argv){
             printf("%s%d\n","Fork Failed at ",i);
             exit(1);
         }
+        /*
+         Each child will generate x and y coordinates for the number of sample points assigned to it.
+         If the distance between the point and origin is less than or equal to 1, it is considered to be inside the circle.
+         From the sample points, the child counts the number of points inside the circle and return it to the parent through a pipe.
+         */
         else if(pid == 0){
             int cpoints = 0; // Number of points inside the circle
             
@@ -43,25 +54,33 @@ int main(int argc, char** argv){
                     ++cpoints;
             }
             
-            double pi = (double) 4 * cpoints / child_points;
             FILE* ptr = fdopen(fd[1], "w");
-            fprintf(ptr, "%f", (double) i);
+            fprintf(ptr, "%d\n", cpoints);
             fclose(ptr);
             
             exit(0);
         }
+        /*
+         Parent points waits for the child to terminate.
+         Once child terminates, the parent reads the number of sample points inside the circle from the pipe.
+         Using the number of sample points inside the circle and the total number of points assigned to the child (total number of points assigned to the child = total number of points in a rectangle) calculates the value of pi.
+         The value of pi is store in the array pi.
+         */
+        else{
+            wait(NULL);
+            
+            char cpoints[256];
+            FILE* ptr = fdopen(fd[0], "r");
+            fscanf(ptr, "%s", cpoints);
+            fclose(ptr);
+            
+            pi[i] = (double) 4 * atoi(cpoints) / child_points; // Number of points inside the rectangle = child_points
+        }
     }
     
-    for(int i=0; i<NUM_CHILD; i++){
-        pid_t pid = wait(NULL);
-        
-        double pi;
-        FILE* ptr = fdopen(fd[0], "r");
-        fscanf(ptr, "%f", pi);
-        fclose(ptr);
-        
-        printf("%s%f%s%f\n", "Child pid ", pid, " approximated pi as ", pi);
-    }
-        
+    // Prints all the pi approximations
+    for(int i=0; i<NUM_CHILD; i++)
+        printf("%s%d%s%f\n", "Pi Approximation ", i+1, " = ", pi[i]);
+    
     return 0;
 }
