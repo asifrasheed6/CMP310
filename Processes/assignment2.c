@@ -6,29 +6,36 @@
 #include<sys/mman.h>
 #include<sys/stat.h>
 #include<sys/wait.h>
+#include<sys/time.h>
 
 /*
- Program to calculate pi approximations using Monte Carlo method.
+ Program to calculate pi approximations using Monte Carlo method. Written by Abdullah Siddiqui (00075201) and Asif Rasheed (00073877).
  The pagram accepts number of child processes and number of sample points used for the approximation as command line parameters.
  */
 
 int main(int argc, char** argv){
     // If not all command line parameters are passed
     if(argc < 3){
-        printf("Usage: ./monte number_of_children number_of_points\n");
+        printf("Usage: ./monte children points\n");
         exit(1);
     }
     
     const int NUM_CHILD = atoi(argv[1]); // Number of child processes
     const int NUM_POINT = atoi(argv[2]); // Number of sample points
-    double pi[NUM_CHILD]; // Array to store pi approximations
-    double run_time[NUM_CHILD]; // Run time for each child process
-    double total_time = 0; // Run time for all the child processes
+    int ctotal = 0; // Sum of number of points inside the circle calculated by each child
+    double pi[NUM_CHILD]; // Array to store pi approximations for each child
+    double runtime[NUM_CHILD]; // Array to store run time of each child in milliseconds
+    double totaltime = 0; // Total runtime of all the child processes
     
     int count = 0; // Number of sample points assigned to child. Once all children are assigned sample points, count = NUM_POINT
     for(int i=0; i<NUM_CHILD; i++){
         int fd[2];
-        pipe(fd);
+        
+        // If pipe fails the program prints fail message and terminates with status 1
+        if(pipe(fd) == -1){
+            printf("Failed to create pipe!\n");
+            exit(1);
+        }
         
         const int child_points = (i == NUM_CHILD-1) ? NUM_POINT-count : ceil((double) NUM_POINT/NUM_CHILD); // To balance the number of sample points assigned to each child (in case NUM_POINT is not a multiple of NUM_CHILD)
         
@@ -63,33 +70,42 @@ int main(int argc, char** argv){
             exit(0);
         }
         /*
-         Parent points waits for the child to terminate.
-         Parent calculates the total wait time for the child process to terminate (which is the total run time for the child).
-         Parent adds the total run time of the child to the total run time of all children.
+         Parent waits for child to terminate.
+         Parent calculates the time elapsed while waiting for the child (which is approximately the runtime of the child process) and stores it in runtime.
+         Parent adds the run time of the child process to totaltime.
          Once child terminates, the parent reads the number of sample points inside the circle from the pipe.
          Using the number of sample points inside the circle and the total number of points assigned to the child (total number of points assigned to the child = total number of points in a rectangle) calculates the value of pi.
          The value of pi is store in the array pi.
+         The number of sample points in the circle is added to ctotal.
          */
         else{
-            time_t start = time(NULL);
+            struct timeval child_start_time, child_end_time; // To calculate time elapsed
+            
+            gettimeofday(&child_start_time, NULL);
             wait(NULL);
-            run_time[i] = time(NULL) - start;
-            total_time += run_time[i];
+            gettimeofday(&child_end_time, NULL);
+            
+            runtime[i] = (double) (child_end_time.tv_sec - child_start_time.tv_sec) * 1000 + child_end_time.tv_usec - child_start_time.tv_usec / 1000;
+            totaltime += runtime[i];
             
             char cpoints[256];
             FILE* ptr = fdopen(fd[0], "r");
             fscanf(ptr, "%s", cpoints);
             fclose(ptr);
             
+            ctotal += atoi(cpoints);
             pi[i] = (double) 4 * atoi(cpoints) / child_points; // Number of points inside the rectangle = child_points
         }
     }
     
-    // Prints all the pi approximations
+    // Prints all the pi approximations and speedup time for each child process
     for(int i=0; i<NUM_CHILD; i++){
         printf("%s%d%s%f\n", "Pi Approximation ", i+1, " = ", pi[i]);
-        printf("%s%d%s%f\n", "Speedup time for child process ", i, " = ", run_time[i]/total_time);
+        printf("%s%d%s%f\n\n", "Speed up time for child ", i+1, " = ", runtime[i]/totaltime);
     }
+    
+    
+    printf("%s%f\n","Pi Approximation using number of points from all child processes = ", (double) 4 * ctotal / NUM_POINT);
     
     return 0;
 }
