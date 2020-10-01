@@ -65,7 +65,7 @@ int main(int argc, char** argv){
             
             FILE* ptr = fdopen(fd[1], "w");
             clock_t child_end_time = time(NULL);
-            fprintf(ptr, "%d %d %d %f\n", getpid(), cpoints, child_points, difftime(child_end_time, child_start_time));
+            fprintf(ptr, "%d %d %d %lf\n", getpid(), cpoints, child_points, difftime(child_end_time, child_start_time));
             fclose(ptr);
             
             exit(0);
