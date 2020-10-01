@@ -44,7 +44,7 @@ int main(int argc, char** argv){
         pid_t pid = fork();
         
         if(pid<0){
-            printf("%s%d\n","Fork Failed at ",i);
+            printf("Fork Failed at %d\n", i);
             exit(1);
         }
         /*
@@ -85,7 +85,7 @@ int main(int argc, char** argv){
             wait(NULL);
             clock_gettime(CLOCK_REALTIME, &child_end_time);
             
-            runtime[i] = (child_end_time.tv_nsec - child_start_time.tv_nsec) * 1e-9;
+            runtime[i] = abs(child_end_time.tv_nsec - child_start_time.tv_nsec) * 1e-9;
             totaltime += runtime[i];
                         
             char cpoints[256];
@@ -100,11 +100,10 @@ int main(int argc, char** argv){
     
     // Prints all the pi approximations and speedup time for each child process
     for(int i=0; i<NUM_CHILD; i++){
-        printf("%s%d%s%f\n", "Pi Approximation ", i+1, " = ", pi[i]);
-        printf("%s%d%s%f\n\n", "Speed up time for child ", i+1, " = ", runtime[i]/totaltime);
+        printf("Pi Approximation %d = %f\n", i+1, pi[i]);
+        printf("Speed up time for child %d = %f\n\n", i+1, runtime[i]/totaltime);
     }
     
-    printf("%s%f\n","Pi Approximation using number of points from all child processes = ", (double) 4 * ctotal / NUM_POINT);
-    
+    printf("Pi Approximation using number of points from all child processes = %f\n", (double) 4 * ctotal / NUM_POINT);
     return 0;
 }
