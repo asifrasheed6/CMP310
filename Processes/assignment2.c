@@ -103,6 +103,6 @@ int main(int argc, char** argv){
     
     // Prints the pi approximatio using the total number of points in side the circle out of all the sample points
     printf("Pi Approximation using number of points from all child processes = %f\n", (double) 4 * ctotal / NUM_POINT);
-    printf("Speed up time for %d children = %lf\n", NUM_CHILD,  total_runtime == 0 ? 0 : child_runtime / total_runtime);
+    printf("Speed up time for %d children = %lf\n", NUM_CHILD,  total_runtime == 0 ? 0 : total_runtime / child_runtime);
     return 0;
 }
