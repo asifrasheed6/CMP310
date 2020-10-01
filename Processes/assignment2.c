@@ -6,7 +6,7 @@
 #include<sys/mman.h>
 #include<sys/stat.h>
 #include<sys/wait.h>
-#include<sys/time.h>
+#include<time.h>
 
 /*
  Program to approximate the value of pi using Monte Carlo method. Written by Abdullah Siddiqui (00075201) and Asif Rasheed (00073877).
