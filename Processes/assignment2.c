@@ -17,7 +17,7 @@
 
 int main(int argc, char** argv){
     if(argc < 3){
-        printf("Usage: ./monte children points\n");
+        printf("Usage: %s children points\n", argv[0]);
         exit(1);
     }
     
