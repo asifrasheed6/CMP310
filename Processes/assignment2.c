@@ -64,7 +64,8 @@ int main(int argc, char** argv){
             }
             
             FILE* ptr = fdopen(fd[1], "w");
-            fprintf(ptr, "%d %d %d %f\n", getpid(), cpoints, child_points, difftime(time(NULL), child_start_time));
+            clock_t child_end_time = time(NULL);
+            fprintf(ptr, "%d %d %d %f\n", getpid(), cpoints, child_points, difftime(child_end_time, child_start_time));
             fclose(ptr);
             
             exit(0);
@@ -95,12 +96,13 @@ int main(int argc, char** argv){
         
         ctotal += atoi(cpoints);
         printf("The pi approximated by child pid %s = %f\n", cpid, (double) 4 * atoi(cpoints) / atoi(spoints));
-        printf("The speedup time for child pid %s = %f\n\n", cpid, total_runtime);
+        printf("The speedup time for child pid %s = %lf\n\n", cpid, atof(runtime) / total_runtime);
     }
     
     fclose(ptr);
     
     // Prints the pi approximatio using the total number of points in side the circle out of all the sample points.
     printf("Pi Approximation using number of points from all child processes = %f\n", (double) 4 * ctotal / NUM_POINT);
+    printf("Total runtime for the program = %lf seconds\n", total_runtime);
     return 0;
 }
