@@ -32,8 +32,7 @@ int main(int argc, char** argv){
     int ctotal = 0; // Sum total of the number of sample points inside the circle calculated by each child prrocess
     double total_runtime; // Approximate total runtime of the program
     
-    struct timespec start_time, end_time; // Used to approximate the runtime of the program
-    clock_gettime(CLOCK_REALTIME, &start_time);
+    clock_t start_time = time(NULL);
     
     int count = 0; // Number of sample points assigned to the child processes. Once all child processes are assigned sample points, count = NUM_POINT
     for(int i=0; i<NUM_CHILD; i++){
@@ -53,10 +52,9 @@ int main(int argc, char** argv){
          The child process returns its pid, number of points inside the circle, total number of points assigned to it and the total runtime (in nano seconds) to the parent using pipe.
         */
         else if(pid == 0){
-            struct timespec child_start_time, child_end_time;
+            clock_t child_start_time = time(NULL);
             int cpoints = 0;
             
-            clock_gettime(CLOCK_REALTIME, &child_start_time);
             for(int i = 0; i<child_points; i++){
                 double x = -1 + ((double) rand() / RAND_MAX) * 2;
                 double y = -1 + ((double) rand() / RAND_MAX) * 2;
@@ -64,10 +62,9 @@ int main(int argc, char** argv){
                 if(sqrt(pow(x,2)+pow(y,2))<=1)
                     ++cpoints;
             }
-            clock_gettime(CLOCK_REALTIME, &child_end_time);
             
             FILE* ptr = fdopen(fd[1], "w");
-            fprintf(ptr, "%d %d %d %d\n", getpid(), cpoints, child_points, abs(end_time.tv_nsec - start_time.tv_nsec));
+            fprintf(ptr, "%d %d %d %f\n", getpid(), cpoints, child_points, difftime(time(NULL), child_start_time));
             fclose(ptr);
             
             exit(0);
@@ -78,8 +75,7 @@ int main(int argc, char** argv){
     for(int i=0; i<NUM_CHILD; i++)
         wait(NULL);
     
-    clock_gettime(CLOCK_REALTIME, &end_time);
-    total_runtime = abs(end_time.tv_nsec - start_time.tv_nsec) * 1e-9;
+    total_runtime = difftime(time(NULL), start_time);
     
     char cpid[256]; // Process id of the child process
     char cpoints[256]; // Number of points inside the circle out of the total number of sample points assigned to the child process
@@ -89,7 +85,7 @@ int main(int argc, char** argv){
     FILE* ptr = fdopen(fd[0], "r");
     /*
      Calculates and prints the pi approximation using the number of sample points assigned to the child process and the number of points inside the circle out of the total number of sample points assigned for each child point.
-     Converts the runtime of the child process from nanoseconds to seconds, calculates and prints the speedup time for each child process.
+     Converts the runtime of the child process from nanoseconds to seconds, calculates and prints the approximate speedup time for each child process.
      */
     for(int i=0; i<NUM_CHILD; i++){
         fscanf(ptr, "%s", cpid);
@@ -99,7 +95,7 @@ int main(int argc, char** argv){
         
         ctotal += atoi(cpoints);
         printf("The pi approximated by child pid %s = %f\n", cpid, (double) 4 * atoi(cpoints) / atoi(spoints));
-        printf("The speedup time for child pid %s = %f\n\n", cpid, (double) (atoi(runtime) * 1e-9) / total_runtime);
+        printf("The speedup time for child pid %s = %f\n\n", cpid, total_runtime);
     }
     
     fclose(ptr);
