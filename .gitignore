@@ -1,0 +1,4 @@
+*.out
+*.pro
+.DS_Store
+.qmake.stash
