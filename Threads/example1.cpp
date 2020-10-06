@@ -1,4 +1,3 @@
-// CMP 310 Lab 4
 #include<iostream>
 #include<QThread>
 using namespace std;
