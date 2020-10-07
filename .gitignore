@@ -4,3 +4,4 @@
 .qmake.stash
 output*
 *.o
+*.patch
