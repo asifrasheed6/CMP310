@@ -8,7 +8,7 @@
 #include<QMutex>
 using namespace std;
 
-QMutex mutex; // It has two states on/off. This is declared globally and therefore is shared among all the threads
+QMutex mutex1; // It has two states on/off. This is declared globally and therefore is shared among all the threads
 
 class MyThread : public QThread{ // Class to implement run block for thread, similar approach to Java (Keep in mind that this is not the POSIX way of doing things)
 private:
@@ -17,9 +17,9 @@ private:
 public:
     MyThread(int id) : ID(id) {}
     void run() {
-        mutex.lock(); // We lock the mutex here, we cannot lock it twice. The function will goto idle state if the function tries to lock a mutex which is already locked until some other thread unlocks it
+        mutex1.lock(); // We lock the mutex here, we cannot lock it twice. The function will goto idle state if the function tries to lock a mutex which is already locked until some other thread unlocks it
         cout << "Thread " << ID << "is running\n"; // Every time a part of this code is executed by the CPU, it tries to context switch. So when it does that, it won't be able to do that because all the other threads are locked. This is the critical section
-        mutex.unlock();
+        mutex1.unlock();
     }
 };
 
