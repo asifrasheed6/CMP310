@@ -5,3 +5,5 @@
 output*
 *.o
 *.patch
+test*
+*.txt
