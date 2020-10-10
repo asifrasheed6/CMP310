@@ -6,7 +6,7 @@
 
 /*
  Program to count the number of times a string pattern is encountered in a text file.
- The program accepts string pattern and the text document subjected to the search as command line parameters.
+ The program accepts string pattern and path to the text document subjected to the search as command line parameters.
  The program uses multiple threads for the search.
  The number of threads are equal to the number of logical cores in the system.
  Written by Abdullah Siddiqui (00075201) and Asif Rasheed (00073877).
