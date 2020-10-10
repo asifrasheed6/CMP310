@@ -1,58 +1,73 @@
 #include<stdio.h>
 #include<string.h>
+#include<fstream>
 #include<QThread>
 #include<QMutex>
 
 /*
- Program to count the number of times a string pattern is encountered in a text file. Written by Abdullah Siddiqui (00075201) and Asif Rasheed (00073877).
+ Program to count the number of times a string pattern is encountered in a text file.
  The program accepts string pattern and the text document subjected to the search as command line parameters.
- The program uses multiple threads for the search. The number of threads are equal to the number of logical cores in the system.
+ The program uses multiple threads for the search.
+ The number of threads are equal to the number of logical cores in the system.
+ Written by Abdullah Siddiqui (00075201) and Asif Rasheed (00073877).
 */
 
 class SearchTask : public QThread{
 private:
   int ID; // Thread ID
 public:
-  static FILE* file; // Input file
-  static QMutex mutex; // Mutex for synchronizing count
+  static std::ifstream file; // Input file stream
+  static QMutex mutex[2]; // Mutexes for synchronizing count and file stream
   static char* pattern; // String pattern to be counted
   static int count; // Number of occurences of the pattern in the text file
 
   SearchTask(int id) : ID(id){} // Constructor, assigns id
 
   /*
-    Each thread would:
-      1. Read the file word by word.
-      2. Compares each word with the pattern.
-      3. If the pattern is equal to or is a substring of the word (case sensitive), count is increased by one.
+  Thread safe method to read from Input File Stream.
+  Synchronizes Input File Stream using Mutex.
+  Returns false if at the end of file.
   */
-  void run(){
-      char buffer[256];
-      while(fscanf(file, "%s", buffer) != EOF){
-        if(strstr(buffer, pattern) != NULL){
-          mutex.lock();
-          ++count;
-          mutex.unlock();
-        }
-      }
+  bool readFromFile(char* buffer){
+    mutex[0].lock();
+    bool ret = file.peek() != EOF;
+    file.getline(buffer, 1024, '\n');
+    mutex[0].unlock();
+    return ret;
   }
 
-  int getID(){ return ID; } // return ID
-
   /*
-    Checks whether the file has been closed or not.
-    If the file is open, closes the file and nullifies the class attribute file.
+  1. Each thread reads a line from the given file.
+  2. Ignores all the characters from the line until the pattern.
+  3. If the resulting character array is equal to NULL, ignores the line.
+  4. Else increment count synchronously.
+  5. Continues 2, 3 and 4 until the pattern doesn't exist in the subbuffer anymore.
   */
+  void run(){
+    char buffer[1024];
+    while(readFromFile(buffer)){
+      char* subbuffer = strstr(buffer, pattern);
+      while(subbuffer != NULL){
+        mutex[1].lock();
+        ++count;
+        mutex[1].unlock();
+        subbuffer = strstr(&subbuffer[strlen(pattern)], pattern);
+      }
+    }
+  }
+
+  int getID(){ return ID; } // returns ID
+
+  // Closes the input file stream
   ~SearchTask(){
-    if(file != NULL && fclose(file) == 0)
-      file = NULL;
+    file.close();
   }
 };
 // Declaration for all static class attributes
-FILE* SearchTask::file = NULL;
+std::ifstream SearchTask::file;
 char* SearchTask::pattern;
 int SearchTask::count = 0;
-QMutex SearchTask::mutex;
+QMutex SearchTask::mutex[2];
 
 int main(int argc, char** argv){
   // Checks if all the command line parameters are given. If any parameter is missing, the program exits with status 1.
@@ -61,16 +76,16 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  // Checks if the path exists or not. If the path doesn't exist, the program exits with status 1.
-  FILE* ptr = fopen(argv[2], "r");
-  if(ptr == NULL){
-    printf("Invalid file!\n");
+  const int NUM_CORE = std::thread::hardware_concurrency(); // Number of logical cores in the system
+  SearchTask::pattern = argv[1]; // Search Pattern
+  SearchTask::file.open(argv[2]); // Tries to open the target file path
+
+  // If the file stream fails, the program exists with status 1.
+  if(SearchTask::file.fail()){
+    printf("Invalid File!\n");
     exit(1);
   }
 
-  const int NUM_CORE = std::thread::hardware_concurrency(); // Number of logical
-  SearchTask::pattern = argv[1]; // Search Pattern
-  SearchTask::file = ptr; // File subjected to the search
   SearchTask* threads[NUM_CORE];
 
   // Creates NUM_CORE threads and starts the search
