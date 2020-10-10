@@ -15,18 +15,11 @@
 class SearchTask : public QThread{
 private:
   int ID; // Thread ID
-public:
-  static std::ifstream file; // Input file stream
-  static QMutex mutex[2]; // Mutexes for synchronizing count and file stream
-  static char* pattern; // String pattern to be counted
-  static int count; // Number of occurences of the pattern in the text file
-
-  SearchTask(int id) : ID(id){} // Constructor, assigns id
-
+  
   /*
   Thread safe method to read from Input File Stream.
   Synchronizes Input File Stream using Mutex.
-  Returns false if at the end of file.
+  Returns false if at the end of file. Else true.
   */
   bool readFromFile(char* buffer){
     mutex[0].lock();
@@ -35,13 +28,23 @@ public:
     mutex[0].unlock();
     return ret;
   }
+ 
+public:
+  static std::ifstream file; // Input file stream
+  static QMutex mutex[2]; // Mutexes for synchronizing count and file stream
+  static char* pattern; // String pattern to be searched
+  static int count; // Number of occurences of the pattern in the text file
+
+  SearchTask(int id) : ID(id){} // Constructor, assigns id
 
   /*
   1. Each thread reads a line from the given file.
-  2. Ignores all the characters from the line until the pattern.
-  3. If the resulting character array is equal to NULL, ignores the line.
+  2. Ignores all the characters from the line until the first occurence of the string pattern.
+  3. If the resulting subbuffer is equal to NULL (that is if the string pattern is not in the subbuffer), read the next line and repeat 2 to 7.
   4. Else increment count synchronously.
-  5. Continues 2, 3 and 4 until the pattern doesn't exist in the subbuffer anymore.
+  5. Ignores the first strlen(pattern) charaters from the subbuffer.
+  6. Ignores all the characters from the subbuffer until the next occurence of the pattern.
+  7. Repeats 3, 4, 5 and 6.
   */
   void run(){
     char buffer[1024];
