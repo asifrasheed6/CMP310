@@ -4,7 +4,6 @@
 #include<time.h>
 #include<QThread>
 #include<QMutex>
-#include<QMutexLocker>
 #include<QSemaphore>
 
 #define BUFFER_SIZE 10
@@ -20,7 +19,7 @@ private:
     QSemaphore *space, *nitems;
 
 public:
-    static QMutex mutex[2];
+    static QMutex mutex;
     static int in, COUNT, NUM_CONSUMERS;
     
     Producer(int total, int *buffer, QSemaphore *space, QSemaphore* nitems) : id(COUNT), total(total), buffer(buffer), space(space), nitems(nitems){
@@ -28,20 +27,18 @@ public:
     }
     
     void run(){
-        {
-            QMutexLocker lock(&mutex[0]);
-            printf("Producer %d will produce %d radom numbers.\n", id, total);
-        }
+        printf("Producer %d will produce %d radom numbers.\n", id, total);
         
         srand(time(NULL));
         
         for(int i=0; i<total; i++){
             space->acquire();
-            {
-                QMutexLocker lock(&mutex[1]);
-                buffer[in++] = rand();
-                in%=BUFFER_SIZE;
-            }
+            
+            mutex.lock();
+            buffer[in++] = rand();
+            in%=BUFFER_SIZE;
+            mutex.unlock();
+            
             nitems->release();
         }
     }
@@ -50,16 +47,17 @@ public:
         --COUNT;
         for(int i=0; COUNT == 0 && i<NUM_CONSUMERS; i++){
             space->acquire();
-            {
-                QMutexLocker lock(&mutex[1]);
-                buffer[in++] = -1;
-                in%=BUFFER_SIZE;
-            }
+            
+            mutex.lock();
+            buffer[in++] = -1;
+            in%=BUFFER_SIZE;
+            mutex.unlock();
+            
             nitems->release();
         }
     }
 };
-QMutex Producer::mutex[2];
+QMutex Producer::mutex;
 int Producer::in = 0;
 int Producer::COUNT = 0;
 int Producer::NUM_CONSUMERS;
@@ -70,7 +68,7 @@ private:
     QSemaphore *space, *nitems;
     
 public:
-    static QMutex mutex[2];
+    static QMutex mutex;
     static int out;
     
     Consumer(int id, int *buffer, QSemaphore *space, QSemaphore *nitems) : id(id), buffer(buffer), space(space), nitems(nitems) {}
@@ -79,23 +77,21 @@ public:
         int val;
         while(1){
             nitems->acquire();
-            {
-                QMutexLocker lock(&mutex[1]);
-                val = buffer[out++];
-                out%=BUFFER_SIZE;
-            }
+            
+            mutex.lock();
+            val = buffer[out++];
+            out%=BUFFER_SIZE;
+            mutex.unlock();
+            
             space->release();
             
             if(val == -1) break;
             else ++count;
         }
-        {
-            QMutexLocker lock(&mutex[0]);
-            printf("Consumer %d read a total of %d random numbers\n", id, count);
-        }
+        printf("Consumer %d read a total of %d random numbers\n", id, count);
     }
 };
-QMutex Consumer::mutex[2];
+QMutex Consumer::mutex;
 int Consumer::out = 0;
 
 
@@ -121,7 +117,7 @@ int main(int argc, char** argv){
     
     for(int i=0; i<NUM_PRODUCERS; i++){
         srand(time(NULL));
-        int total = i == NUM_PRODUCERS-1 ? (NUM_NUMBERS - count) % NUM_NUMBERS : abs(rand() % (NUM_NUMBERS - count) + 1);
+        int total = i == NUM_PRODUCERS-1 ? NUM_NUMBERS - count : abs(rand() % (NUM_NUMBERS - count) + 1);
         count += total;
         
         producer[i] = new Producer(total, buffer, &space, &nitems);
