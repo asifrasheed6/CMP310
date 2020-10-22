@@ -47,17 +47,16 @@ public:
     }
     
     ~Producer(){
-        if(COUNT == 0)
-            for(int i=0; i<NUM_CONSUMERS; i++){
-                space->acquire();
-                {
-                    QMutexLocker lock(&mutex[1]);
-                    buffer[in++] = -1;
-                    in%=BUFFER_SIZE;
-                }
-                nitems->release();
+        --COUNT;
+        for(int i=0; COUNT == 0 && i<NUM_CONSUMERS; i++){
+            space->acquire();
+            {
+                QMutexLocker lock(&mutex[1]);
+                buffer[in++] = -1;
+                in%=BUFFER_SIZE;
             }
-        else COUNT--;
+            nitems->release();
+        }
     }
 };
 QMutex Producer::mutex[2];
@@ -92,7 +91,7 @@ public:
         }
         {
             QMutexLocker lock(&mutex[0]);
-            printf("Consumer %d read %d random numbers", id, count);
+            printf("Consumer %d read a total of %d random numbers\n", id, count);
         }
     }
 };
@@ -134,8 +133,10 @@ int main(int argc, char** argv){
         consumer[i]->start();
     }
     
-    for(int i=0; i<NUM_PRODUCERS; i++)
+    for(int i=0; i<NUM_PRODUCERS; i++){
         producer[i]->wait();
+        delete producer[i];
+    }
     
     for(int i=0; i<NUM_CONSUMERS; i++)
         consumer[i]->wait();
