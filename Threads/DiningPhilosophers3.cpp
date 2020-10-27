@@ -29,13 +29,13 @@ public:
         }
         else{
             philosopher.acquire();
-            chopsticks[id].acquire();
             chopsticks[(id+1) % 5].acquire();
+            chopsticks[id].acquire();
             printf("Philosopher %d is eating...\n", id);
             sleep(rand() % 5);
             printf("Philosopher %d is done eating...\n", id);
-            chopsticks[id].release();
             chopsticks[(id+1) % 5].release();
+            chopsticks[id].release();
         }
     }
 };
